@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanMyCV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm py-5">
+        <div class="max-w-4xl mx-auto px-6">
+            <h1 class="text-2xl font-bold text-indigo-600">ScanMyCV</h1>
+            <p class="text-gray-500 text-sm">AI-powered resume analyzer</p>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="max-w-4xl mx-auto px-6 py-10">
+        <div class="bg-white rounded-2xl shadow p-8">
+
+            <!-- Upload form -->
+            <div id="form-section">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">Analyze your resume</h2>
+
+                <div class="mb-5">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload Resume (PDF or DOCX)</label>
+                    <input type="file" id="resume-file" accept=".pdf,.docx"
+                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-gray-200 rounded-lg p-1"/>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Paste Job Description</label>
+                    <textarea id="job-description" rows="6" placeholder="Paste the job description here..."
+                        class="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea>
+                </div>
+
+                <button onclick="scanResume()"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition">
+                    Analyze Resume
+                </button>
+            </div>
+
+            <!-- Loading -->
+            <div id="loading-section" class="hidden text-center py-16">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p class="text-gray-500">Analyzing your resume with AI...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="results-section" class="hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Analysis Results</h2>
+                    <button onclick="resetForm()" class="text-sm text-indigo-600 hover:underline">← Scan another</button>
+                </div>
+
+                <!-- Score -->
+                <div class="bg-indigo-50 rounded-xl p-6 mb-6 text-center">
+                    <p class="text-sm text-indigo-500 mb-1">Match Score</p>
+                    <p id="match-score" class="text-6xl font-bold text-indigo-600"></p>
+                </div>
+
+                <!-- Summary -->
+                <div class="bg-gray-50 rounded-xl p-5 mb-6">
+                    <p class="text-sm font-medium text-gray-500 mb-1">Summary</p>
+                    <p id="summary" class="text-gray-700 text-sm"></p>
+                </div>
+
+                <!-- Skills grid -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-green-50 rounded-xl p-5">
+                        <p class="text-sm font-medium text-green-700 mb-3">✓ Matched Skills</p>
+                        <div id="matched-skills" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div class="bg-red-50 rounded-xl p-5">
+                        <p class="text-sm font-medium text-red-700 mb-3">✗ Missing Skills</p>
+                        <div id="missing-skills" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- Strengths -->
+                <div class="mb-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Strengths</p>
+                    <ul id="strengths" class="list-disc list-inside text-sm text-gray-600 space-y-1"></ul>
+                </div>
+
+                <!-- Improvements -->
+                <div>
+                    <p class="text-sm font-medium text-gray-700 mb-2">Improvements</p>
+                    <ul id="improvements" class="list-disc list-inside text-sm text-gray-600 space-y-1"></ul>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        async function scanResume() {
+            const file = document.getElementById('resume-file').files[0];
+            const jd = document.getElementById('job-description').value.trim();
+
+            if (!file || !jd) {
+                alert('Please upload a resume and paste a job description.');
+                return;
+            }
+
+            document.getElementById('form-section').classList.add('hidden');
+            document.getElementById('loading-section').classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('resume', file);
+            formData.append('job_description', jd);
+
+            try {
+                const response = await fetch('/scan/', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    resetForm();
+                } else {
+                    showResults(data);
+                }
+            } catch (err) {
+                alert('Something went wrong. Please try again.');
+                resetForm();
+            }
+        }
+
+        function showResults(data) {
+            document.getElementById('loading-section').classList.add('hidden');
+            document.getElementById('results-section').classList.remove('hidden');
+
+            document.getElementById('match-score').textContent = data.match_score + '%';
+            document.getElementById('summary').textContent = data.summary;
+
+            const matchedEl = document.getElementById('matched-skills');
+            matchedEl.innerHTML = '';
+            data.matched_skills.forEach(skill => {
+                matchedEl.innerHTML += `<span class="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">${skill}</span>`;
+            });
+
+            const missingEl = document.getElementById('missing-skills');
+            missingEl.innerHTML = '';
+            data.missing_skills.forEach(skill => {
+                missingEl.innerHTML += `<span class="bg-red-100 text-red-700 text-xs px-3 py-1 rounded-full">${skill}</span>`;
+            });
+
+            const strengthsEl = document.getElementById('strengths');
+            strengthsEl.innerHTML = '';
+            data.strengths.forEach(s => {
+                strengthsEl.innerHTML += `<li>${s}</li>`;
+            });
+
+            const improvementsEl = document.getElementById('improvements');
+            improvementsEl.innerHTML = '';
+            data.improvements.forEach(i => {
+                improvementsEl.innerHTML += `<li>${i}</li>`;
+            });
+        }
+
+        function resetForm() {
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('loading-section').classList.add('hidden');
+            document.getElementById('form-section').classList.remove('hidden');
+            document.getElementById('resume-file').value = '';
+            document.getElementById('job-description').value = '';
+        }
+    </script>
+
+</body>
+</html>
