@@ -1,7 +1,10 @@
+import os
 from groq import Groq
+from dotenv import load_dotenv
 
-API_KEY = "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"
+load_dotenv()
 
+API_KEY = os.environ.get("GROQ_API_KEY", "")
 client = Groq(api_key=API_KEY)
 
 def analyze_resume(resume_text, job_description):
